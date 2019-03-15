@@ -1,7 +1,6 @@
 # TrellisNet for Sequence Modeling
 
 
-
 This repository contains the experiments done in paper [Trellis Networks for Sequence Modeling](https://arxiv.org/abs/1810.06682) by Shaojie Bai, J. Zico Kolter and Vladlen Koltun.
 
 
