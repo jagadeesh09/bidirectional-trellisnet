@@ -166,6 +166,7 @@ def train(epoch):
     model.train()
 
     for batch_idx, (data, target) in enumerate(train_loader):
+        print("Training       ")
         if args.cuda: data, target = data.cuda(), target.cuda()
         data = data.view(-1, input_channels, seq_length)
         if args.permute:

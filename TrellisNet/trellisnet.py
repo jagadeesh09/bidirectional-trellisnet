@@ -99,23 +99,30 @@ class TrellisNet(nn.Module):
         else:
             self.full_conv = WeightShareConv1d(ninp, h_size, 4 * h_size, kernel_size=ker, dropouth=dropouth)
 
-    def flip(x, dim):
+    def flip(self, x, dim):
         dim = x.dim() + dim if dim < 0 else dim
         inds = tuple(slice(None, None) if i != dim
              else x.new(torch.arange(x.size(i)-1, -1, -1).tolist()).long()
              for i in range(x.dim()))
         return x[inds]
+
     def transform_input(self, X):
         # X has dimension (N, ninp, L)
         batch_size = X.size(0)
         seq_len = X.size(2)
         h_size = self.h_size
 
-        self.ht = torch.zeros(batch_size, h_size, seq_len).cuda()
-        self.ct = torch.zeros(batch_size, h_size, seq_len).cuda()
-        return torch.cat([X] + [self.ht], dim=1)     # "Injecting" input sequence at layer 1
+        X_rev = self.flip(X, 2)
 
-    def step(self, Z, dilation=1, hc=None):
+        self.ht_forward = torch.zeros(batch_size, h_size, seq_len).cuda()
+        self.ht_backward = torch.zeros(batch_size, h_size, seq_len).cuda()
+        self.ct_forward = torch.zeros(batch_size, h_size, seq_len).cuda()
+        self.ct_backward = torch.zeros(batch_size, h_size, seq_len).cuda()
+        input_f = torch.cat([X] + [self.ht_forward], dim=1)  #injecting input layer for the forward network
+	input_b = torch.cat([X_rev] + [self.ht_backward], dim=1)  # injecting input layer for the backward network
+        return (input_f, input_b)     # "Injecting" input sequence at layer 1
+
+    def step(self, Z, dilation=1, hc=None, forward=1):
         ninp = self.ninp
         h_size = self.h_size
         (hid, cell) = hc
@@ -124,8 +131,12 @@ class TrellisNet(nn.Module):
         out = self.full_conv(Z, dilation=dilation, hid=hid)
 
         # Gated activations among channel groups
-        ct_1 = F.pad(self.ct, (dilation, 0))[:, :, :-dilation]  # Dimension (N, h_size, L)
-        ct_1[:, :, :dilation] = cell.repeat(1, 1, dilation)
+        if forward:
+            ct_1 = F.pad(self.ct_forward, (dilation, 0))[:, :, :-dilation]  # Dimension (N, h_size, L)
+            ct_1[:, :, :dilation] = cell.repeat(1, 1, dilation)
+        else:
+            ct_1 = F.pad(self.ct_backward, (dilation, 0))[:, :, :-dilation]  # Dimension (N, h_size, L)
+            ct_1[:, :, :dilation] = cell.repeat(1, 1, dilation)
 
         it = torch.sigmoid(out[:, :h_size])
         ot = torch.sigmoid(out[:, h_size: 2 * h_size])
@@ -136,13 +147,16 @@ class TrellisNet(nn.Module):
 
         # Put everything back to form Z (i.e., injecting input to hidden unit)
         Z = torch.cat([Z[:, :ninp], ht], dim=1)
-        self.ct = ct
+        if forward:
+            self.ct_forward = ct
+        else:
+            self.ct_backward = ct
         return Z
 
     def forward(self, X, hc, aux=True):
         ninp = self.ninp
         nout = self.nout
-        Z = self.transform_input(X)
+        ( Z_f , Z_b) = self.transform_input(X)
         aux_outs = []
         dilation_cycle = self.dilation
 
@@ -153,17 +167,21 @@ class TrellisNet(nn.Module):
             # Clear the pre-computed computations
             if key[1] == X.get_device():
                 self.full_conv.dict[key] = None
-        self.full_conv.drop.reset_mask(Z[:, ninp:])
+        self.full_conv.drop.reset_mask(Z_f[:, ninp:])
+        self.full_conv.drop.reset_mask(Z_b[:, ninp:])
 
         # Feed-forward layers
         for i in range(0, self.nlevels):
             d = dilation_cycle[i % len(dilation_cycle)]
-            Z = self.step(Z, dilation=d, hc=hc)
-            if aux and i % self.aux_frequency == (self.aux_frequency-1):
-                aux_outs.append(Z[:, -nout:].unsqueeze(0))
+            Z_f = self.step(Z_f, dilation=d, hc=hc)
+            #Z_b = self.step(Z_b, dilation=d, hc=hc, forward=0)
+            Z_b = self.flip(Z_b, 2)
+            Z_f[:,:-1,:] = Z_b[:,:-1,:] = Z_f[:,:-1,:] + Z_b[:,:-1,:]
+            #if aux and i % self.aux_frequency == (self.aux_frequency-1):
+            #    aux_outs.append(Z[:, -nout:].unsqueeze(0))
 
-        out = Z[:, -nout:].transpose(1, 2)              # Dimension (N, L, nout)
-        hc = (Z[:, ninp:, -1:], self.ct[:, :, -1:])     # Dimension (N, h_size, L)
+        out = Z_f[:, -nout:].transpose(1, 2)              # Dimension (N, L, nout)
+        hc = (Z_f[:, ninp:, -1:], self.ct_forward[:, :, -1:])     # Dimension (N, h_size, L)
         if aux:
             aux_outs = torch.cat(aux_outs, dim=0).transpose(0, 1).transpose(2, 3)
         else:
