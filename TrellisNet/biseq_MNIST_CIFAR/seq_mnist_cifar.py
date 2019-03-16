@@ -22,7 +22,7 @@ parser.add_argument('--epochs', type=int, default=200,
 parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                     help='batch size')
 
-parser.add_argument('--nlevels', type=int, default=11,
+parser.add_argument('--nlevels', type=int, default=6,
                     help='steps unrolled')
 parser.add_argument('--dropout', type=float, default=0.1,
                     help='output locked dropout (0 = no dropout)')
@@ -50,7 +50,7 @@ parser.add_argument('--aux', type=float, default=0,
                     help='use auxiliary loss (default: 0), -1 means w/o')
 parser.add_argument('--aux_freq', type=float, default=1e4,
                     help='auxiliary loss frequency (default: 1e4)')
-parser.add_argument('--log-interval', type=int, default=100, metavar='N',
+parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='report interval')
 parser.add_argument('--when', nargs='+', type=int, default=[50, 75, 90],
                     help='When to decay the learning rate')
@@ -166,7 +166,7 @@ def train(epoch):
     model.train()
 
     for batch_idx, (data, target) in enumerate(train_loader):
-        print("Training       ")
+        #print("Training       ")
         if args.cuda: data, target = data.cuda(), target.cuda()
         data = data.view(-1, input_channels, seq_length)
         if args.permute:

@@ -174,9 +174,9 @@ class TrellisNet(nn.Module):
         for i in range(0, self.nlevels):
             d = dilation_cycle[i % len(dilation_cycle)]
             Z_f = self.step(Z_f, dilation=d, hc=hc)
-            #Z_b = self.step(Z_b, dilation=d, hc=hc, forward=0)
-            Z_b = self.flip(Z_b, 2)
-            Z_f[:,:-1,:] = Z_b[:,:-1,:] = Z_f[:,:-1,:] + Z_b[:,:-1,:]
+            Z_b = self.step(Z_b, dilation=d, hc=hc, forward=0)
+            temp = self.flip(Z_b, 2)
+            Z_f[:,ninp:,:] = Z_b[:,ninp:,:] = Z_f[:,ninp:,:] + temp[:,ninp:,:]
             #if aux and i % self.aux_frequency == (self.aux_frequency-1):
             #    aux_outs.append(Z[:, -nout:].unsqueeze(0))
 
