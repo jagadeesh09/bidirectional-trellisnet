@@ -99,6 +99,12 @@ class TrellisNet(nn.Module):
         else:
             self.full_conv = WeightShareConv1d(ninp, h_size, 4 * h_size, kernel_size=ker, dropouth=dropouth)
 
+    def flip(x, dim):
+        dim = x.dim() + dim if dim < 0 else dim
+        inds = tuple(slice(None, None) if i != dim
+             else x.new(torch.arange(x.size(i)-1, -1, -1).tolist()).long()
+             for i in range(x.dim()))
+        return x[inds]
     def transform_input(self, X):
         # X has dimension (N, ninp, L)
         batch_size = X.size(0)

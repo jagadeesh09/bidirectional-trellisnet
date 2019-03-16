@@ -8,3 +8,5 @@ DS_Store/
 data/
 *.corpus
 weights/
+biseq_MNIST_CIFAR/data/
+biseq_MNIST_CIFAR/logs/
