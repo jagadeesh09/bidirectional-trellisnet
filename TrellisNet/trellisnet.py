@@ -56,7 +56,7 @@ class WeightShareConv1d(nn.Module):
             self.dict[(dilation, device, forward)] = F.conv1d(x_1, self.weight1, dilation=dilation)
 
         # Input injection
-        return self.dict[(dilation, device, forward)] + F.conv1d(self.drop(z_1), self.weight2, self.bias2, dilation=dilation)
+        return F.conv1d(self.drop(z_1), self.weight2, self.bias2, dilation=dilation)
 
 
 class TrellisNet(nn.Module):
