@@ -38,7 +38,7 @@ class WeightShareConv1d(nn.Module):
         self.weight2.data.normal_(0, bound)
         self.bias2.data.normal_(0, bound)
 
-    def forward(self, input, dilation, hid=None):
+    def forward(self, input, dilation, , forward = 1, hid=None):
         k = self.kernel_size
         padding = (k - 1) * dilation    # To maintain causality constraint
         x = F.pad(input, (padding, 0))
@@ -52,11 +52,11 @@ class WeightShareConv1d(nn.Module):
         device = x_1.get_device()
 
         # A linear transformation of the input sequence (and pre-computed once)
-        if (dilation, device) not in self.dict or self.dict[(dilation, device)] is None:
-            self.dict[(dilation, device)] = F.conv1d(x_1, self.weight1, dilation=dilation)
+        if (dilation, device, forward) not in self.dict or self.dict[(dilation, device, forward)] is None:
+            self.dict[(dilation, device, forward)] = F.conv1d(x_1, self.weight1, dilation=dilation)
 
         # Input injection
-        return self.dict[(dilation, device)] + F.conv1d(self.drop(z_1), self.weight2, self.bias2, dilation=dilation)
+        return self.dict[(dilation, device, forward)] + F.conv1d(self.drop(z_1), self.weight2, self.bias2, dilation=dilation)
 
 
 class TrellisNet(nn.Module):
