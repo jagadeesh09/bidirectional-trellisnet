@@ -1,5 +1,6 @@
-# TrellisNet for Sequence Modeling
+# Bi-directional TrellisNet for Sequence Modeling
 
+This repository is modified for bi-directional behaviour, which can be used for sequence modelling. TrellisNet is completely based on convolutional neural networks.
 
 This repository contains the experiments done in paper [Trellis Networks for Sequence Modeling](https://arxiv.org/abs/1810.06682) by Shaojie Bai, J. Zico Kolter and Vladlen Koltun.
 
